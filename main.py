@@ -93,4 +93,4 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # Reemplaza este token con el de tu bot
-bot.run("")
+bot.run(Token)
