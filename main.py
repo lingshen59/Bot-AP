@@ -24,9 +24,9 @@ def ask_pawan(message):
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "CosmosRP-V2.1",
+        "model": "CosmosRP-V2",
         "messages": [{"role": "user", "content": message}],
-        "temperature": 0.9
+        "temperature": 1.2
     }
     response = requests.post(url, headers=headers, json=payload)
 
