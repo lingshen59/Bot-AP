@@ -36,7 +36,13 @@ def consulta_ia_pawan(texto_usuario):
         }
 
         r = requests.post(url, json=payload)
-        return r.json()["choices"][0]["message"]["content"]
+        data = r.json()
+        if "choices" in data and len(data["choices"]) > 0:
+            return data["choices"][0]["message"]["content"]
+        elif "error" in data:
+            return f"❌ Error del modelo: {data['error'].get('message', 'Sin mensaje')}"
+        else:
+            return "⚠️ La IA no respondió correctamente."
 
     except Exception as e:
         return f"⚠️ Error: {e}"
