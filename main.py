@@ -24,7 +24,7 @@ def ask_pawan(message):
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "gpt-3.5-turbo",
+        "model": "CosmosRP-V3",
         "messages": [{"role": "user", "content": message}],
         "temperature": 0.9
     }
