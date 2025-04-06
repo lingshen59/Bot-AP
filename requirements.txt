@@ -1,2 +1,3 @@
 discord.py
 googlesearch-python
+python-dotenv
