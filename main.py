@@ -1,110 +1,110 @@
-import os
 import discord
-from discord.ext import commands
 from discord import app_commands
-import requests
 from dotenv import load_dotenv
+import aiohttp
+import asyncio
+import os
 
 load_dotenv()
-TOKEN = os.getenv("Token")
-API_KEY = os.getenv("PAWAN_API_KEY")
+
+TOKEN = os.getenv("DISCORD_TOKEN")
+API_KEY = os.getenv("API_KEY")
+MODEL = os.getenv("DEFAULT_MODEL")
 
 intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents)
-tree = bot.tree
+client = discord.Client(intents=intents)
+tree = app_commands.CommandTree(client)
 
-active_channel = None
+enabled_channels = set()
 
-# ======================== FUNCIONES ========================
+@client.event
+async def on_ready():
+    await tree.sync()
+    print(f"✅ Bot conectado como {client.user}")
 
-def ask_pawan(message):
+@tree.command(name="start", description="Activar el modo conversación del bot en este canal.")
+async def start(interaction: discord.Interaction):
+    enabled_channels.add(interaction.channel.id)
+    await interaction.response.send_message("🟢 Chat activado en este canal.")
+
+@tree.command(name="disable", description="Desactiva el modo conversación del bot en este canal.")
+async def disable(interaction: discord.Interaction):
+    enabled_channels.discard(interaction.channel.id)
+    await interaction.response.send_message("🔴 Chat desactivado en este canal.")
+
+@tree.command(name="model", description="Cambiar el modelo de IA.")
+@app_commands.describe(name="Nombre del modelo (gpt-4o, gpt-3.5-turbo, cosmosrp-pro, etc.)")
+async def change_model(interaction: discord.Interaction, name: str):
+    global MODEL
+    MODEL = name
+    await interaction.response.send_message(f"⚙️ Modelo cambiado a: `{name}`")
+
+@tree.command(name="p", description="Recursos para aprender un lenguaje de programación.")
+@app_commands.describe(lenguaje="Ej: Python, JavaScript", idioma="Ej: español, inglés")
+async def recursos_programacion(interaction: discord.Interaction, lenguaje: str, idioma: str):
+    await interaction.response.send_message(
+        f"📘 Recursos para aprender {lenguaje} en {idioma}:\n"
+        f"- YouTube: https://www.youtube.com/results?search_query=curso+{lenguaje}+{idioma}\n"
+        f"- W3Schools: https://www.w3schools.com/\n"
+        f"- FreeCodeCamp: https://www.freecodecamp.org/"
+    )
+
+@tree.command(name="c", description="Recursos de ciberseguridad.")
+@app_commands.describe(nivel="básico, intermedio o experto")
+async def recursos_ciberseguridad(interaction: discord.Interaction, nivel: str):
+    await interaction.response.send_message(
+        f"🛡️ Ciberseguridad ({nivel}):\n"
+        f"- TryHackMe: https://tryhackme.com\n"
+        f"- HackTheBox: https://www.hackthebox.com/\n"
+        f"- YouTube: https://www.youtube.com/results?search_query=curso+ciberseguridad+{nivel}"
+    )
+
+@tree.command(name="h", description="Recursos de hacking ético.")
+@app_commands.describe(nivel="básico, intermedio o experto")
+async def recursos_hacking(interaction: discord.Interaction, nivel: str):
+    await interaction.response.send_message(
+        f"💻 Hacking ético ({nivel}):\n"
+        f"- YouTube: https://www.youtube.com/results?search_query=hacking+ético+{nivel}\n"
+        f"- HackTheBox Academy: https://academy.hackthebox.com/\n"
+        f"- Cybrary: https://www.cybrary.it/"
+    )
+
+async def get_response(prompt):
     url = "https://api.pawan.krd/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
-    payload = {
-        "model": "CosmosRP-V2",
-        "messages": [{"role": "user", "content": message}],
-        "temperature": 1.2
+    data = {
+        "model": MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": True
     }
-    response = requests.post(url, headers=headers, json=payload)
 
-    if response.status_code == 200:
-        return response.json()['choices'][0]['message']['content']
-    else:
-        return f"❌ Error del modelo: {response.json().get('error', {}).get('message', 'Respuesta no válida.')}"
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=data) as response:
+            async for line in response.content:
+                if line:
+                    try:
+                        text = line.decode("utf-8").replace("data: ", "").strip()
+                        if text and text != "[DONE]":
+                            yield eval(text)["choices"][0]["delta"].get("content", "")
+                    except:
+                        continue
 
-# ======================== EVENTOS ========================
-
-@bot.event
-async def on_ready():
-    print(f"✅ Conectado como {bot.user}")
-    try:
-        synced = await tree.sync()
-        print(f"🔁 Slash commands sincronizados: {len(synced)}")
-    except Exception as e:
-        print(f"Error al sincronizar: {e}")
-
-@bot.event
+@client.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    global active_channel
-    if active_channel != message.channel.id:
-        return
+    if message.channel.id in enabled_channels and client.user in message.mentions:
+        prompt = message.content.replace(f"<@{client.user.id}>", "").strip()
+        msg = await message.channel.send("💭 Pensando...")
 
-    if bot.user in message.mentions or message.content.strip() != "":
-        prompt = f"Responde de forma educativa y divertida sobre temas como ciberseguridad, hacking ético, programación o lo que te pregunten. Mensaje: {message.content}"
-        await message.channel.typing()
-        try:
-            response = ask_pawan(prompt)
-            await message.reply(response[:2000])
-        except Exception as e:
-            await message.reply(f"⚠️ Error procesando la respuesta: {e}")
+        response_text = ""
+        async for chunk in get_response(prompt):
+            response_text += chunk
+            await msg.edit(content=response_text)
+            await asyncio.sleep(0.05)
 
-# ======================== COMANDOS SLASH ========================
-
-@tree.command(name="start", description="Activa el bot en este canal")
-async def start_command(interaction: discord.Interaction):
-    global active_channel
-    active_channel = interaction.channel_id
-    await interaction.response.send_message("✅ Bot activado en este canal. Puedes hablarme libremente 😉")
-
-@tree.command(name="disable", description="Desactiva el bot en este canal")
-async def disable_command(interaction: discord.Interaction):
-    global active_channel
-    if active_channel == interaction.channel_id:
-        active_channel = None
-        await interaction.response.send_message("❌ Bot desactivado en este canal.")
-    else:
-        await interaction.response.send_message("⚠️ Este canal no está activo.")
-
-@tree.command(name="p", description="Recursos para aprender un lenguaje de programación")
-@app_commands.describe(lenguaje="Lenguaje de programación", idioma="Idioma (español, inglés...)")
-async def p_command(interaction: discord.Interaction, lenguaje: str, idioma: str):
-    await interaction.response.defer()
-    prompt = f"Dame enlaces útiles en {idioma} para aprender {lenguaje}, incluyendo sitios web y videos si es posible."
-    resultado = ask_pawan(prompt)
-    await interaction.followup.send(resultado[:2000])
-
-@tree.command(name="c", description="Recursos de ciberseguridad")
-@app_commands.describe(nivel="Nivel de conocimiento: básico, intermedio o experto")
-async def c_command(interaction: discord.Interaction, nivel: str):
-    await interaction.response.defer()
-    prompt = f"Dame una lista de recursos de ciberseguridad para el nivel {nivel}, incluyendo cursos, libros, laboratorios online y videos si es posible."
-    resultado = ask_pawan(prompt)
-    await interaction.followup.send(resultado[:2000])
-
-@tree.command(name="h", description="Recursos de hacking ético")
-@app_commands.describe(nivel="Nivel de conocimiento: básico, intermedio o experto")
-async def h_command(interaction: discord.Interaction, nivel: str):
-    await interaction.response.defer()
-    prompt = f"Recomiéndame recursos para aprender hacking ético a nivel {nivel}, que incluyan sitios web, videos, libros o laboratorios prácticos."
-    resultado = ask_pawan(prompt)
-    await interaction.followup.send(resultado[:2000])
-
-# ======================== EJECUCIÓN ========================
-
-bot.run(TOKEN)
+client.run(TOKEN)
