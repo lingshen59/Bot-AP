@@ -2,12 +2,15 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from googlesearch import search
+import dotenv
 
 intents = discord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix=",", intents=intents)
 tree = bot.tree
+
+load_dotenv()
 
 # Solo responderá en este canal
 CHANNEL_ID = 1358302860734890004
@@ -93,4 +96,4 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # Reemplaza este token con el de tu bot
-bot.run(Token)
+bot.run(os.getenv(Token))
