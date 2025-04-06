@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from googlesearch import search
-import dotenv
+from dotenv import load_dotenv
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -96,4 +96,4 @@ async def on_message(message):
     await bot.process_commands(message)
 
 # Reemplaza este token con el de tu bot
-bot.run(os.getenv(Token))
+bot.run(os.getenv("Token"))
