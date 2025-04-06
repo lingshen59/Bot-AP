@@ -24,7 +24,7 @@ def ask_pawan(message):
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "cosmosrp",
+        "model": "CosmosRP-V2.1",
         "messages": [{"role": "user", "content": message}],
         "temperature": 0.9
     }
