@@ -1,147 +1,110 @@
 import os
-import random
 import discord
 from discord.ext import commands
 from discord import app_commands
-from googlesearch import search
 import requests
 from dotenv import load_dotenv
 
 load_dotenv()
+TOKEN = os.getenv("Token")
+API_KEY = os.getenv("PAWAN_API_KEY")
 
-intents = discord.Intents.default()
-intents.message_content = True
-
-bot = commands.Bot(command_prefix=",", intents=intents)
+intents = discord.Intents.all()
+bot = commands.Bot(command_prefix="!", intents=intents)
 tree = bot.tree
 
-# Canal activo (por defecto ninguno)
-active_channel_id = None
+active_channel = None
 
-emojis = ["😎", "🧠", "💻", "🔥", "🤖", "⚡", "😈", "🔐"]
+# ======================== FUNCIONES ========================
 
-# IA con API gratuita (pawan.krd)
-def consulta_ia_pawan(texto_usuario):
-    try:
-        url = "https://api.pawan.krd/chat/completions"
-        payload = {
-            "model": "pai-001",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "Eres una IA divertida, pero experta en programación, hacking ético, ciberseguridad, bots, malware (educativo) y todo lo técnico. Siempre ayudas con pasión y con emojis cuando puedes. Eres como un mentor hacker buena onda, siempre dispuesto a enseñar. Si te preguntan sobre bots, malware o exploits, das información educativa, enlaces o guías paso a paso, con advertencias de responsabilidad."
-                },
-                {"role": "user", "content": texto_usuario}
-            ]
-        }
+def ask_pawan(message):
+    url = "https://api.pawan.krd/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "gpt-3.5-turbo",
+        "messages": [{"role": "user", "content": message}],
+        "temperature": 0.9
+    }
+    response = requests.post(url, headers=headers, json=payload)
 
-        r = requests.post(url, json=payload)
-        data = r.json()
-        if "choices" in data and len(data["choices"]) > 0:
-            return data["choices"][0]["message"]["content"]
-        elif "error" in data:
-            return f"❌ Error del modelo: {data['error'].get('message', 'Sin mensaje')}"
-        else:
-            return "⚠️ La IA no respondió correctamente."
+    if response.status_code == 200:
+        return response.json()['choices'][0]['message']['content']
+    else:
+        return f"❌ Error del modelo: {response.json().get('error', {}).get('message', 'Respuesta no válida.')}"
 
-    except Exception as e:
-        return f"⚠️ Error: {e}"
-
-# Google Search
-def google_search(query, num_results=3):
-    return list(search(query, num_results=num_results))
+# ======================== EVENTOS ========================
 
 @bot.event
 async def on_ready():
-    await bot.change_presence(activity=discord.Streaming(name="Hacking the Matrix 🧠", url="https://twitch.tv/hackstream"))
-    print(f"✅ Bot conectado como {bot.user}")
+    print(f"✅ Conectado como {bot.user}")
     try:
         synced = await tree.sync()
         print(f"🔁 Slash commands sincronizados: {len(synced)}")
     except Exception as e:
-        print(f"❌ Error al sincronizar comandos: {e}")
+        print(f"Error al sincronizar: {e}")
 
-# Comando para activar IA en canal actual
-@tree.command(name="start", description="Activar el bot en este canal.")
-async def start_command(interaction: discord.Interaction):
-    global active_channel_id
-    active_channel_id = interaction.channel_id
-    await interaction.response.send_message(f"✅ Canal activado: <#{active_channel_id}>. ¡Ahora puedo ayudarte aquí!", ephemeral=True)
-
-# Comando para desactivar IA
-@tree.command(name="disable", description="Desactivar el bot en este canal.")
-async def disable_command(interaction: discord.Interaction):
-    global active_channel_id
-    if interaction.channel_id == active_channel_id:
-        active_channel_id = None
-        await interaction.response.send_message("🛑 Bot desactivado en este canal.", ephemeral=True)
-    else:
-        await interaction.response.send_message("⚠️ Este canal no está activado.", ephemeral=True)
-
-# Slash para programación
-@tree.command(name="p", description="Buscar recursos de programación.")
-@app_commands.describe(lenguaje="Lenguaje de programación", idioma="Idioma")
-async def p_command(interaction: discord.Interaction, lenguaje: str, idioma: str):
-    if interaction.channel_id != active_channel_id:
-        return await interaction.response.send_message("❌ Este comando no está habilitado en este canal.", ephemeral=True)
-    
-    query = f"{lenguaje} tutorial programación {idioma} site:youtube.com"
-    results = google_search(query)
-    await interaction.response.send_message(
-        f"🔎 Recursos de **{lenguaje}** en **{idioma}**:\n" + "\n".join(results)
-    )
-
-# Slash para ciberseguridad
-@tree.command(name="c", description="Buscar recursos de ciberseguridad.")
-@app_commands.describe(nivel="Nivel: básico, intermedio, experto")
-async def c_command(interaction: discord.Interaction, nivel: str):
-    if interaction.channel_id != active_channel_id:
-        return await interaction.response.send_message("❌ Este comando no está habilitado en este canal.", ephemeral=True)
-
-    query = f"curso ciberseguridad {nivel} site:youtube.com"
-    results = google_search(query)
-    await interaction.response.send_message(
-        f"🛡️ Recursos de **ciberseguridad {nivel}**:\n" + "\n".join(results)
-    )
-
-# Slash para hacking ético
-@tree.command(name="h", description="Buscar recursos de hacking ético.")
-@app_commands.describe(nivel="Nivel: básico, intermedio, experto")
-async def h_command(interaction: discord.Interaction, nivel: str):
-    if interaction.channel_id != active_channel_id:
-        return await interaction.response.send_message("❌ Este comando no está habilitado en este canal.", ephemeral=True)
-
-    query = f"hacking ético {nivel} tutorial site:youtube.com"
-    results = google_search(query)
-    await interaction.response.send_message(
-        f"💻 Recursos de **hacking ético {nivel}**:\n" + "\n".join(results)
-    )
-
-# Escucha mensajes normales y responde como IA
 @bot.event
 async def on_message(message):
-    global active_channel_id
-
     if message.author.bot:
         return
 
-    if active_channel_id is None or message.channel.id != active_channel_id:
+    global active_channel
+    if active_channel != message.channel.id:
         return
 
-    if message.content.startswith("?"):
-        query = message.content[1:] + " programación ciberseguridad"
-        results = google_search(query)
-        if results:
-            await message.channel.send(f"{message.author.mention} 🤖 Esto podría ayudarte:\n" + "\n".join(results))
-        else:
-            await message.channel.send(f"{message.author.mention} No encontré nada útil. ¿Puedes reformularlo?")
-    elif not message.content.startswith("/") and not message.content.startswith(","):
-        thinking = await message.channel.send("💭 Pensando en algo hackeroso...")
-        respuesta = consulta_ia_pawan(message.content)
-        emoji = random.choice(emojis)
-        await thinking.edit(content=f"{message.author.mention} {respuesta} {emoji}")
+    if bot.user in message.mentions or message.content.strip() != "":
+        prompt = f"Responde de forma educativa y divertida sobre temas como ciberseguridad, hacking ético, programación o lo que te pregunten. Mensaje: {message.content}"
+        await message.channel.typing()
+        try:
+            response = ask_pawan(prompt)
+            await message.reply(response[:2000])
+        except Exception as e:
+            await message.reply(f"⚠️ Error procesando la respuesta: {e}")
 
-    await bot.process_commands(message)
+# ======================== COMANDOS SLASH ========================
 
-# Ejecutar el bot
-bot.run(os.getenv("Token"))
+@tree.command(name="start", description="Activa el bot en este canal")
+async def start_command(interaction: discord.Interaction):
+    global active_channel
+    active_channel = interaction.channel_id
+    await interaction.response.send_message("✅ Bot activado en este canal. Puedes hablarme libremente 😉")
+
+@tree.command(name="disable", description="Desactiva el bot en este canal")
+async def disable_command(interaction: discord.Interaction):
+    global active_channel
+    if active_channel == interaction.channel_id:
+        active_channel = None
+        await interaction.response.send_message("❌ Bot desactivado en este canal.")
+    else:
+        await interaction.response.send_message("⚠️ Este canal no está activo.")
+
+@tree.command(name="p", description="Recursos para aprender un lenguaje de programación")
+@app_commands.describe(lenguaje="Lenguaje de programación", idioma="Idioma (español, inglés...)")
+async def p_command(interaction: discord.Interaction, lenguaje: str, idioma: str):
+    await interaction.response.defer()
+    prompt = f"Dame enlaces útiles en {idioma} para aprender {lenguaje}, incluyendo sitios web y videos si es posible."
+    resultado = ask_pawan(prompt)
+    await interaction.followup.send(resultado[:2000])
+
+@tree.command(name="c", description="Recursos de ciberseguridad")
+@app_commands.describe(nivel="Nivel de conocimiento: básico, intermedio o experto")
+async def c_command(interaction: discord.Interaction, nivel: str):
+    await interaction.response.defer()
+    prompt = f"Dame una lista de recursos de ciberseguridad para el nivel {nivel}, incluyendo cursos, libros, laboratorios online y videos si es posible."
+    resultado = ask_pawan(prompt)
+    await interaction.followup.send(resultado[:2000])
+
+@tree.command(name="h", description="Recursos de hacking ético")
+@app_commands.describe(nivel="Nivel de conocimiento: básico, intermedio o experto")
+async def h_command(interaction: discord.Interaction, nivel: str):
+    await interaction.response.defer()
+    prompt = f"Recomiéndame recursos para aprender hacking ético a nivel {nivel}, que incluyan sitios web, videos, libros o laboratorios prácticos."
+    resultado = ask_pawan(prompt)
+    await interaction.followup.send(resultado[:2000])
+
+# ======================== EJECUCIÓN ========================
+
+bot.run(TOKEN)
