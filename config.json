@@ -1,1 +1,5 @@
-{}
+{
+    "warn_limit": 3,
+    "action": "mute",
+    "duration": "1h"
+}
