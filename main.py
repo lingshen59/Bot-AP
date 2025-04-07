@@ -47,7 +47,7 @@ def is_owner():
 
 # Comando para setear el límite de warns para que un usuario sea muteado o baneado
 @bot.tree.command(name="setwarn", description="Establecer límite de warns y duración para acciones")
-@app_commands.describe(warn_limit="Límite de warns", action="Acción a realizar (mute, ban, kick)", duration="Duración de la acción (ej: 1h)")
+@app_commands.describe(warn_limit="Límite de warns", action="Acción a realizar (mute, ban, kick)", duration="Duración (ej: 1h)")
 @is_owner()
 async def setwarn(interaction: discord.Interaction, warn_limit: int, action: str, duration: str):
     if action not in ['mute', 'ban', 'kick']:
@@ -144,7 +144,6 @@ async def on_ready():
 
 # Función principal asincrónica para ejecutar el bot
 async def main():
-    # Ejecutar el bot de Discord
     await bot.start(TOKEN)
 
 # Ejecutar el código asincrónico
