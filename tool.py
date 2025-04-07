@@ -169,7 +169,7 @@ async def ban(ctx, user_number: int, *, reason: str):
 # Comando de desbanear
 @bot.command(name="unban")
 @has_required_permissions()
-async def ban(ctx, user_number: int):
+async def unban(ctx, user_number: int):
     members = await show_user_list(ctx)
     if not members:
         return
@@ -210,6 +210,38 @@ async def kick(ctx, user_number: int, *, reason: str):
     
     await member.kick(reason=reason)
     await ctx.send(f"{member.name} ha sido kickeado por: {reason}")
+    
+def menu():
+    print("Elige una opción:")
+    print("1. Ban [1]")
+    print("2. mute [2]")
+    print("3. warns [3]")
+    print("4. setwarn [4]")
+    print("5. addwarns [5]")
+    print("6. clearwarns [6]")
+    print("7. unban [7]")
+    print("8. kick [8]")
+    
+    opcion = input("Ingresa el número de la opción deseada: ")
+
+    if opcion == '1':
+        ban()
+    elif opcion == '2':
+        mute()
+    elif opcion == '3':
+        warns()
+    elif opcion == '4':
+        setwarn()
+    elif opcion == '5':
+        addwarn()
+    elif opcion == '6':
+        clearwarns()
+    elif opcion == '7':
+        unban()
+    elif opcion == '8':
+        kick()
+    else:
+        print("Opción no válida. Por favor, ingresa 1 o 2.")
 
 # Evento de inicio del bot
 @bot.event
