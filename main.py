@@ -39,16 +39,18 @@ def save_data():
     with open('config.json', 'w') as file:
         json.dump(config_data, file)
 
-# Custom check to verify if the user is the owner
-def is_owner():
+# Custom check to verify if the user has the required permissions
+def has_required_permissions():
     def predicate(interaction: discord.Interaction):
-        return interaction.user.id == OWNER_ID
+        if interaction.user.id == OWNER_ID:
+            return True
+        return interaction.permissions.ban_members or interaction.permissions.kick_members or interaction.permissions.mute_members
     return app_commands.check(predicate)
 
 # Comando para setear el límite de warns para que un usuario sea muteado o baneado
 @bot.tree.command(name="setwarn", description="Establecer límite de warns y duración para acciones")
 @app_commands.describe(warn_limit="Límite de warns", action="Acción a realizar (mute, ban, kick)", duration="Duración (ej: 1h)")
-@is_owner()
+@has_required_permissions()
 async def setwarn(interaction: discord.Interaction, warn_limit: int, action: str, duration: str):
     if action not in ['mute', 'ban', 'kick']:
         await interaction.response.send_message("Acción no válida. Use 'mute', 'ban' o 'kick'.")
@@ -78,7 +80,7 @@ async def setwarn(interaction: discord.Interaction, warn_limit: int, action: str
 # Comando para ver los warns de un usuario
 @bot.tree.command(name="warns", description="Ver los warns de un usuario")
 @app_commands.describe(member="Miembro del servidor")
-@is_owner()
+@has_required_permissions()
 async def warns(interaction: discord.Interaction, member: discord.Member):
     user_warns = warns_data.get(str(member.id), 0)
     await interaction.response.send_message(f"{member.name} tiene {user_warns} warns.")
@@ -86,7 +88,7 @@ async def warns(interaction: discord.Interaction, member: discord.Member):
 # Comando para añadir un warn a un usuario
 @bot.tree.command(name="addwarn", description="Añadir un warn a un usuario")
 @app_commands.describe(member="Miembro del servidor")
-@is_owner()
+@has_required_permissions()
 async def addwarn(interaction: discord.Interaction, member: discord.Member):
     if str(member.id) not in warns_data:
         warns_data[str(member.id)] = 0
@@ -98,7 +100,7 @@ async def addwarn(interaction: discord.Interaction, member: discord.Member):
 # Comando para limpiar warns de un usuario
 @bot.tree.command(name="clearwarns", description="Limpiar todos los warns de un usuario")
 @app_commands.describe(member="Miembro del servidor")
-@is_owner()
+@has_required_permissions()
 async def clearwarns(interaction: discord.Interaction, member: discord.Member):
     if str(member.id) in warns_data:
         warns_data[str(member.id)] = 0
@@ -110,15 +112,22 @@ async def clearwarns(interaction: discord.Interaction, member: discord.Member):
 # Comando de banear
 @bot.tree.command(name="ban", description="Banear a un usuario")
 @app_commands.describe(member="Miembro del servidor", reason="Razón del ban")
-@is_owner()
+@has_required_permissions()
 async def ban(interaction: discord.Interaction, member: discord.Member, reason: str):
     await member.ban(reason=reason)
     await interaction.response.send_message(f"{member.name} ha sido baneado por: {reason}")
 
+@bot.tree.command(name="unban", description="Desbanear a un usuario")
+@app_commands.describe(member="Miembro del servidor")
+@has_required_permissions()
+async def unban(interaction: discord.Interaction, member: discord.Member):
+    await member.unban()
+    await interaction.response.send_message(f"{member.name} ha sido desbaneado")
+
 # Comando de mute
 @bot.tree.command(name="mute", description="Mute a un usuario")
 @app_commands.describe(member="Miembro del servidor", duration="Duración del mute (ej: 1h)")
-@is_owner()
+@has_required_permissions()
 async def mute(interaction: discord.Interaction, member: discord.Member, duration: str):
     await member.edit(mute=True)
     await interaction.response.send_message(f"{member.name} ha sido muteado por {duration}.")
@@ -126,7 +135,7 @@ async def mute(interaction: discord.Interaction, member: discord.Member, duratio
 # Comando de kick
 @bot.tree.command(name="kick", description="Kick a un usuario")
 @app_commands.describe(member="Miembro del servidor", reason="Razón del kick")
-@is_owner()
+@has_required_permissions()
 async def kick(interaction: discord.Interaction, member: discord.Member, reason: str):
     await member.kick(reason=reason)
     await interaction.response.send_message(f"{member.name} ha sido kickeado por: {reason}")
