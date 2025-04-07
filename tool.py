@@ -38,9 +38,40 @@ def save_data():
     with open('config.json', 'w') as file:
         json.dump(config_data, file)
 
+# Custom check to verify if the user has the required permissions
+def has_required_permissions():
+    async def predicate(ctx):
+        if ctx.author.id == OWNER_ID:
+            return True
+        return ctx.author.guild_permissions.ban_members or ctx.author.guild_permissions.kick_members or ctx.author.guild_permissions.mute_members
+    return commands.check(predicate)
+
+# Función para mostrar la lista de usuarios con sus números
+async def show_user_list(ctx):
+    guild = ctx.guild
+    if not guild:
+        await ctx.send("No estoy en un servidor.")
+        return None
+    
+    members = guild.members
+    if not members:
+        await ctx.send("No hay miembros en este servidor.")
+        return None
+    
+    user_list = "\n".join([f"{i+1}. {member.name} (ID: {member.id})" for i, member in enumerate(members)])
+    await ctx.send(f"Lista de miembros:\n{user_list}")
+    return members
+
+# Función para obtener el usuario por número
+async def get_user_by_number(ctx, number: int, members):
+    if number < 1 or number > len(members):
+        await ctx.send("Número de usuario no válido.")
+        return None
+    return members[number - 1]
+
 # Comando para setear el límite de warns para que un usuario sea muteado o baneado
 @bot.command(name="setwarn")
-@commands.is_owner()
+@has_required_permissions()
 async def setwarn(ctx, warn_limit: int, action: str, duration: str):
     if action not in ['mute', 'ban', 'kick']:
         await ctx.send("Acción no válida. Use 'mute', 'ban' o 'kick'.")
@@ -69,15 +100,31 @@ async def setwarn(ctx, warn_limit: int, action: str, duration: str):
 
 # Comando para ver los warns de un usuario
 @bot.command(name="warns")
-@commands.is_owner()
-async def warns(ctx, member: discord.Member):
+@has_required_permissions()
+async def warns(ctx, user_number: int):
+    members = await show_user_list(ctx)
+    if not members:
+        return
+    
+    member = await get_user_by_number(ctx, user_number, members)
+    if not member:
+        return
+    
     user_warns = warns_data.get(str(member.id), 0)
     await ctx.send(f"{member.name} tiene {user_warns} warns.")
 
 # Comando para añadir un warn a un usuario
 @bot.command(name="addwarn")
-@commands.is_owner()
-async def addwarn(ctx, member: discord.Member):
+@has_required_permissions()
+async def addwarn(ctx, user_number: int):
+    members = await show_user_list(ctx)
+    if not members:
+        return
+    
+    member = await get_user_by_number(ctx, user_number, members)
+    if not member:
+        return
+    
     if str(member.id) not in warns_data:
         warns_data[str(member.id)] = 0
     warns_data[str(member.id)] += 1
@@ -87,8 +134,16 @@ async def addwarn(ctx, member: discord.Member):
 
 # Comando para limpiar warns de un usuario
 @bot.command(name="clearwarns")
-@commands.is_owner()
-async def clearwarns(ctx, member: discord.Member):
+@has_required_permissions()
+async def clearwarns(ctx, user_number: int):
+    members = await show_user_list(ctx)
+    if not members:
+        return
+    
+    member = await get_user_by_number(ctx, user_number, members)
+    if not member:
+        return
+    
     if str(member.id) in warns_data:
         warns_data[str(member.id)] = 0
         save_data()
@@ -98,22 +153,61 @@ async def clearwarns(ctx, member: discord.Member):
 
 # Comando de banear
 @bot.command(name="ban")
-@commands.is_owner()
-async def ban(ctx, member: discord.Member, *, reason: str):
+@has_required_permissions()
+async def ban(ctx, user_number: int, *, reason: str):
+    members = await show_user_list(ctx)
+    if not members:
+        return
+    
+    member = await get_user_by_number(ctx, user_number, members)
+    if not member:
+        return
+    
     await member.ban(reason=reason)
     await ctx.send(f"{member.name} ha sido baneado por: {reason}")
+    
+# Comando de desbanear
+@bot.command(name="unban")
+@has_required_permissions()
+async def ban(ctx, user_number: int):
+    members = await show_user_list(ctx)
+    if not members:
+        return
+    
+    member = await get_user_by_number(ctx, user_number, members)
+    if not member:
+        return
+    
+    await member.unban()
+    await ctx.send(f"{member.name} ha sido desbaneado")
 
 # Comando de mute
 @bot.command(name="mute")
-@commands.is_owner()
-async def mute(ctx, member: discord.Member, duration: str):
+@has_required_permissions()
+async def mute(ctx, user_number: int, duration: str):
+    members = await show_user_list(ctx)
+    if not members:
+        return
+    
+    member = await get_user_by_number(ctx, user_number, members)
+    if not member:
+        return
+    
     await member.edit(mute=True)
     await ctx.send(f"{member.name} ha sido muteado por {duration}.")
 
 # Comando de kick
 @bot.command(name="kick")
-@commands.is_owner()
-async def kick(ctx, member: discord.Member, *, reason: str):
+@has_required_permissions()
+async def kick(ctx, user_number: int, *, reason: str):
+    members = await show_user_list(ctx)
+    if not members:
+        return
+    
+    member = await get_user_by_number(ctx, user_number, members)
+    if not member:
+        return
+    
     await member.kick(reason=reason)
     await ctx.send(f"{member.name} ha sido kickeado por: {reason}")
 
